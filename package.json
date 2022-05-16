@@ -1,6 +1,6 @@
 {
   "name": "insomnia",
-  "version": "0.0.1",
+  "version": "22.5.16",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
@@ -14,23 +14,23 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@types/bitcore-lib-cash": "^8.23.2",
-    "@types/express": "^4.17.3",
-    "@types/node": "^13.9.3",
-    "bchaddrjs-slp": "^0.2.9",
-    "bignumber.js": "^9.0.1",
-    "bitcore-lib-cash": "^8.22.2",
-    "dotenv": "^8.2.0",
-    "electrum-cash": "^2.0.4",
-    "express": "^4.17.1",
-    "express-rate-limit": "^5.1.1",
-    "morgan": "^1.10.0",
-    "patch-package": "^6.2.2",
+    "@types/bitcore-lib-cash": "8.23.2",
+    "@types/express": "4.17.3",
+    "@types/node": "13.9.3",
+    "bchaddrjs-slp": "0.2.9",
+    "bignumber.js": "9.0.2",
+    "bitcore-lib-cash": "8.22.2",
+    "dotenv": "16.0.1",
+    "electrum-cash": "2.0.4",
+    "express": "4.18.1",
+    "express-rate-limit": "6.4.0",
+    "morgan": "1.10.0",
+    "patch-package": "6.2.2",
     "slp-parser": "0.0.4"
   },
   "devDependencies": {
-    "@types/morgan": "^1.9.0",
-    "tslint": "^6.1.0",
-    "typescript": "^3.8.3"
+    "@types/morgan": "1.9.0",
+    "tslint": "6.1.0",
+    "typescript": "3.8.3"
   }
 }

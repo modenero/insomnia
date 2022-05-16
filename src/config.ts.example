@@ -1,35 +1,37 @@
-import { ElectrumCluster } from "electrum-cash";
+import { ElectrumCluster } from "electrum-cash"
 
 const config = {
-  "port": 8000,
-  "electrum": {
-    "application": "MyApplication",
-    "version": "1.4.1",
-    // or use "client" which will use first server
-    "connectionType": "cluster",
-    // only relevant for cluster
-    "confidence": 2,
-    // only relevant for cluster
-    "distribution": 3,
-    // must be hostname:port
-    "servers": [
-      "fulcrum.fountainhead.cash:50002",
-      "electrum.imaginary.cash:50002",
-      "bch.imaginary.cash:50002",
-      "electroncash.de:50002",
-      "electroncash.dk:50002",
-      "electron.jochen-hoenicke.de:51002",
-    ]
-  },
-  "ratelimit": {
-    "windowMs": 1 * 60 * 1000,
-    "max": 100
-  },
-  "gspp": {
-    "url": "gs.fountainhead.cash:443",
-    "insecure": false,
-    "cert": null
-  }
-};
+    "port": 8000,
+    "electrum": {
+        "application": "Insomnia by Cash DevOps",
+        "version": "1.4.1",
+        // "cluster" will create a redundant server pool
+        // or use "client" will use the first listed server
+        "connectionType": "client",
+        // only relevant for cluster
+        "confidence": 2,
+        // only relevant for cluster
+        "distribution": 3,
+        // must be hostname:port
+        "servers": [
+            "fulcrum.devops.cash:50002",
+            "fulcrum.fountainhead.cash:50002",
+            "electrum.imaginary.cash:50002",
+            "bch.imaginary.cash:50002",
+            "electroncash.de:50002",
+            "electroncash.dk:50002",
+            "electron.jochen-hoenicke.de:51002",
+        ]
+    },
+    "ratelimit": {
+        "windowMs": 1 * 60 * 1000,
+        "max": 100
+    },
+    "gspp": {
+        "url": "gs.fountainhead.cash:443",
+        "insecure": false,
+        "cert": null
+    }
+}
 
-export { config };
+export { config }
