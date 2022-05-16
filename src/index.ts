@@ -1,138 +1,147 @@
-import { config } from './config';
-import fs from 'fs';
-import { ElectrumCluster, ElectrumClient } from 'electrum-cash';
-import BigNumber from 'bignumber.js';
-import express from 'express';
-import bodyParser from 'body-parser';
-import bitcore from 'bitcore-lib-cash';
+import { config } from './config'
+import fs from 'fs'
+import { ElectrumCluster, ElectrumClient } from 'electrum-cash'
+import BigNumber from 'bignumber.js'
+import express from 'express'
+import bodyParser from 'body-parser'
+import bitcore from 'bitcore-lib-cash'
 import {
-  GenesisParseResult,
-  MintParseResult,
-  SendParseResult,
-  parseSLP
-} from 'slp-parser';
-import { toCashAddress, toSlpAddress } from 'bchaddrjs-slp';
-import morgan from 'morgan';
-import rateLimit from "express-rate-limit";
+    GenesisParseResult,
+    MintParseResult,
+    SendParseResult,
+    parseSLP,
+} from 'slp-parser'
+import { toCashAddress, toSlpAddress } from 'bchaddrjs-slp'
+import morgan from 'morgan'
+import rateLimit from 'express-rate-limit'
 
-let electrum = null;
+let electrum = null
+
 if (config.electrum.connectionType === 'cluster') {
-  electrum = new ElectrumCluster(
-    config.electrum.application,
-    config.electrum.version,
-    config.electrum.confidence,
-    config.electrum.distribution,
-  );
+    electrum = new ElectrumCluster(
+        config.electrum.application,
+        config.electrum.version,
+        config.electrum.confidence,
+        config.electrum.distribution,
+    )
 
-  for (const server of config.electrum.servers) {
-    const [host, port] = server.split(':');
-    if (typeof(host) === 'undefined' || typeof(port) === 'undefined') {
-      throw new Error("server field has bad format (should be host:port)");
+    for (const server of config.electrum.servers) {
+        const [host, port] = server.split(':')
+
+        if (typeof(host) === 'undefined' || typeof(port) === 'undefined') {
+            throw new Error('server field has bad format (should be host:port)')
+        }
+
+        electrum.addServer(host, port)
     }
-    electrum.addServer(host, port);
-  }
 } else if (config.electrum.connectionType === 'client') {
-  const [hostname, port] = config.electrum.servers[0].split(':');
-  electrum = new ElectrumClient(
-    config.electrum.application,
-    config.electrum.version,
-    hostname,
-    parseInt(port, 10)
-  );
+    const [hostname, port] = config.electrum.servers[0].split(':')
+
+    electrum = new ElectrumClient(
+        config.electrum.application,
+        config.electrum.version,
+        hostname,
+        parseInt(port, 10)
+    )
 } else {
-  console.log('unknown electrum.connectionType');
-  process.exit(1);
+  console.log('unknown electrum.connectionType')
+  process.exit(1)
 }
 
 const apiLimiter = rateLimit({
-  ...config.ratelimit,
-  ...{
-    message: {
-      success: false,
-      message: "Too many requests"
+    ...config.ratelimit,
+    ...{
+        message: {
+            success: false,
+            message: 'Too many requests'
+        }
     }
-  }
-});
+})
 
-const app = express();
-app.use(bodyParser.text({ limit: '250kb' }));
-app.disable('x-powered-by');
-app.use('/v1/', apiLimiter);
+const app = express()
+app.use(bodyParser.text({ limit: '250kb' }))
+app.disable('x-powered-by')
+app.use('/v1/', apiLimiter)
 
-app.use(express.static('public'));
+app.use(express.static('public'))
 
 app.use(morgan('dev', {
-  // skip: (req, res) => res.statusCode < 400
-}));
+    // skip: (req, res) => res.statusCode < 400
+}))
 
-const router = express.Router();
-app.use('/v1', router);
+const router = express.Router()
+app.use('/v1', router)
 
 async function blockchainTransactionGet(transactionID: string) {
-  var electrumResponse = await electrum.request('blockchain.transaction.get', transactionID, false);
+    const electrumResponse = await electrum
+        .request('blockchain.transaction.get', transactionID, false)
 
-  if (electrumResponse instanceof Error) {
-    throw electrumResponse;
-  }
+    if (electrumResponse instanceof Error) {
+        throw electrumResponse
+    }
 
-  if (electrumResponse.hasOwnProperty("code")) {
-    throw new Error(electrumResponse.message);
-  }
+    if (electrumResponse.hasOwnProperty('code')) {
+        throw new Error(electrumResponse.message)
+    }
 
-  return electrumResponse;
+    return electrumResponse
 }
 
 function hydrateTransaction(transactionHex: string): any {
-  const tx = new bitcore.Transaction(transactionHex);
-  let response = tx.toJSON();
-  for (let input of response.inputs) {
-    try {
-      const script = new bitcore.Script(input.script);
-      input.cashAddress = script.toAddress().toString();
-      input.slpAddress = toSlpAddress(input.cashAddress);
-    } catch (e) {
-      input.cashAddress = null;
-      input.slpAddress = null;
-    }
-  }
-  for (let output of response.outputs) {
-    try {
-      const script = new bitcore.Script(output.script);
-      output.cashAddress = script.toAddress().toString();
-      output.slpAddress = toSlpAddress(output.cashAddress);
-    } catch (e) {
-      output.cashAddress = null;
-      output.slpAddress = null;
-    }
-  }
-  if (response.outputs.length > 0) {
-    try {
-      const parsed = parseSLP(response.outputs[0].script);
-      const fmtd: any = parsed;
-      if (parsed.transactionType === "GENESIS") {
-        let o = parsed.data as GenesisParseResult;
-        fmtd.data.ticker       = o.ticker.toString('hex');
-        fmtd.data.name         = o.ticker.toString('hex');
-        fmtd.data.documentUri  = o.documentUri.toString('hex');
-        fmtd.data.documentHash = o.documentHash.toString('hex');
-      }
-      else if (parsed.transactionType === "MINT") {
-        let o = parsed.data as MintParseResult;
-        fmtd.data.tokenId = o.tokenId.toString('hex');
-      }
-      else if (parsed.transactionType === "SEND") {
-        let o = parsed.data as SendParseResult;
-        fmtd.data.tokenId  = o.tokenId.toString('hex');
-      }
+    const tx = new bitcore.Transaction(transactionHex)
 
-      response.slp = parsed;
-    } catch (e) {
-      response.slp = {
-        error: e.message
-      }
+    let response = tx.toJSON()
+
+    for (let input of response.inputs) {
+        try {
+            const script = new bitcore.Script(input.script)
+            input.cashAddress = script.toAddress().toString()
+            input.slpAddress = toSlpAddress(input.cashAddress)
+        } catch (e) {
+            input.cashAddress = null
+            input.slpAddress = null
+        }
     }
-  }
-  return response;
+
+    for (let output of response.outputs) {
+        try {
+            const script = new bitcore.Script(output.script)
+            output.cashAddress = script.toAddress().toString()
+            output.slpAddress = toSlpAddress(output.cashAddress)
+        } catch (e) {
+            output.cashAddress = null
+            output.slpAddress = null
+        }
+    }
+
+    if (response.outputs.length > 0) {
+        try {
+            const parsed = parseSLP(response.outputs[0].script);
+            const fmtd: any = parsed;
+
+            if (parsed.transactionType === "GENESIS") {
+                let o = parsed.data as GenesisParseResult;
+                fmtd.data.ticker       = o.ticker.toString('hex');
+                fmtd.data.name         = o.ticker.toString('hex');
+                fmtd.data.documentUri  = o.documentUri.toString('hex');
+                fmtd.data.documentHash = o.documentHash.toString('hex');
+            } else if (parsed.transactionType === "MINT") {
+                let o = parsed.data as MintParseResult;
+                fmtd.data.tokenId = o.tokenId.toString('hex');
+            } else if (parsed.transactionType === "SEND") {
+                let o = parsed.data as SendParseResult;
+                fmtd.data.tokenId  = o.tokenId.toString('hex');
+            }
+
+            response.slp = parsed;
+        } catch (e) {
+            response.slp = {
+                error: e.message
+            }
+        }
+    }
+
+    return response
 }
 
 router.get('/tx/data/:txid', async (req, res) => {
@@ -478,20 +487,22 @@ router.get('/dsproof/list', async (req, res) => {
 
 
 (async () => {
-  if (config.electrum.connectionType === 'cluster') {
-    await electrum.ready();
-  } else if (config.electrum.connectionType === 'client') {
-    await electrum.connect();
-  }
-  app.listen(config.port);
-  console.log('listening on port', config.port);
-
-  process.on('beforeExit', async () => {
     if (config.electrum.connectionType === 'cluster') {
-      await electrum.shutdown();
+        await electrum.ready()
     } else if (config.electrum.connectionType === 'client') {
-      await electrum.disconnect();
+        await electrum.connect()
     }
-    process.exit(0);
-  });
-})();
+
+    app.listen(config.port)
+    console.log(`\nNow listening on port [ ${config.port} ]...\n`)
+
+    process.on('beforeExit', async () => {
+        if (config.electrum.connectionType === 'cluster') {
+            await electrum.shutdown()
+        } else if (config.electrum.connectionType === 'client') {
+            await electrum.disconnect()
+        }
+
+        process.exit(0)
+    })
+})()
