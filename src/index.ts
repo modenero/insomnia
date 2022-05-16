@@ -14,6 +14,7 @@ import {
 import { toCashAddress, toSlpAddress } from 'bchaddrjs-slp'
 import morgan from 'morgan'
 import rateLimit from 'express-rate-limit'
+import path from 'path'
 
 let electrum = null
 
@@ -63,7 +64,7 @@ app.use(bodyParser.text({ limit: '250kb' }))
 app.disable('x-powered-by')
 app.use('/v1/', apiLimiter)
 
-app.use(express.static('public'))
+app.use(express.static(path.join(__dirname, '..', 'public')))
 
 app.use(morgan('dev', {
     // skip: (req, res) => res.statusCode < 400
@@ -494,7 +495,7 @@ router.get('/dsproof/list', async (req, res) => {
     }
 
     app.listen(config.port)
-    console.log(`\nNow listening on port [ ${config.port} ]...\n`)
+    console.log(`\n  Now listening on port [ ${config.port} ]\n`)
 
     process.on('beforeExit', async () => {
         if (config.electrum.connectionType === 'cluster') {
