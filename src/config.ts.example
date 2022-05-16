@@ -7,7 +7,7 @@ const config = {
         "version": "1.4.1",
         // "cluster" will create a redundant server pool
         // or use "client" will use the first listed server
-        "connectionType": "client",
+        "connectionType": "cluster",
         // only relevant for cluster
         "confidence": 2,
         // only relevant for cluster
